@@ -19,27 +19,25 @@ Balances and profit are always calculated from the records, never typed in.
 
 Next.js 15 (App Router, server actions) · PostgreSQL via Prisma · Tailwind CSS · cookie sessions (jose) · installable PWA.
 
+## Put it online (Supabase + Vercel, no commands needed)
+
+1. Create a free project at supabase.com. Copy the database connection string (Connect > Session pooler) and put the database password into it.
+2. Import this GitHub repository at vercel.com.
+3. In Vercel, add the environment variables `DATABASE_URL`, `AUTH_SECRET` (32+ random characters), `OWNER_EMAIL` and `OWNER_PASSWORD`, then deploy.
+4. Every deploy creates or updates the tables and adds the owner login, default accounts and the USD→INR rate if they are missing (`npm run build` runs `prisma migrate deploy` and `prisma/seed.ts`).
+5. Sign in as the owner and upload the old Excel file in Settings > Import old Excel.
+
 ## Run it on a computer
 
 Needs Node.js 20+ and a PostgreSQL database.
 
 ```bash
-cp .env.example .env        # fill in DATABASE_URL and AUTH_SECRET
+cp .env.example .env        # fill in DATABASE_URL, AUTH_SECRET, OWNER_EMAIL, OWNER_PASSWORD
 npm install
-npm run db:migrate          # creates the tables
-npm run db:seed             # owner login, default accounts, USD→INR rate 88
-npm run import:excel -- "IVEVAR Master Sales  Profit Dashboard.xlsx"   # optional, one time
+npm run db:migrate && npm run db:seed
 npm run dev                 # http://localhost:3000
 ```
 
-## Put it online (Supabase + Vercel)
-
-1. Create a free project at supabase.com. Copy the database connection string (Session pooler).
-2. Put this code in a GitHub repository and import it at vercel.com.
-3. In Vercel, add the environment variables `DATABASE_URL` and `AUTH_SECRET`.
-4. From a computer with the code: set the same `DATABASE_URL` in `.env`, then run `npm run db:migrate`, `npm run db:seed` and (optionally) the Excel import.
-5. Open the Vercel link on each phone and choose "Add to Home Screen".
-
 ## About the Excel import
 
-`scripts/import-excel.ts` reads the "Shipping Updates" tab: customers, sales executives, orders, full payments, making cost and courier cost. Money from before the app goes through a closed account called "Excel history", so real accounts start clean with their opening balances. Imported sales executives cannot sign in until the owner gives them an email and password in Settings. Running the import again skips rows already imported.
+Settings > Import old Excel (or `npm run import:excel -- <file.xlsx>`) reads the "Shipping Updates" tab: customers, sales executives, orders, full payments, making cost and courier cost. Money from before the app goes through a closed account called "Excel history", so real accounts start clean with their opening balances. Imported sales executives cannot sign in until the owner gives them an email and password in Settings. Running the import again skips rows already imported.

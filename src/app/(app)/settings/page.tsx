@@ -4,7 +4,8 @@ import { getUsdInrRate } from "@/lib/settings";
 import { ROLE_LABEL } from "@/lib/roles";
 import { Badge, Card, Field, FormGrid, Input, PageHeader, Select } from "@/components/ui";
 import { ActionForm } from "@/components/action-form";
-import { createUser, saveRate, updateUser } from "./actions";
+import { ImportForm } from "@/components/import-form";
+import { createUser, importExcel, saveRate, updateUser } from "./actions";
 
 const ROLE_OPTS = Object.entries(ROLE_LABEL).map(([value, label]) => ({ value, label }));
 
@@ -22,6 +23,10 @@ export default async function SettingsPage() {
                 <Input name="usdInrRate" inputMode="decimal" defaultValue={rate} />
               </Field>
             </ActionForm>
+          </Card>
+          <Card title="Import old Excel">
+            <p className="mb-3 text-sm text-slate-600">Upload the &quot;Master Sales &amp; Profit Dashboard&quot; file (.xlsx). Orders from its Shipping Updates tab are added once; uploading again skips them.</p>
+            <ImportForm action={importExcel} />
           </Card>
           <Card title="Add team member">
             <ActionForm action={createUser} submit="Add member">

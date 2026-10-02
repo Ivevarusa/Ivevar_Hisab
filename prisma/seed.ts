@@ -1,6 +1,6 @@
 /**
  * First-time setup: the owner login, the money accounts and the exchange rate.
- * Run with: npm run db:seed   (safe to run again; it only adds what is missing)
+ * Runs on every deploy (see the build script) and with `npm run db:seed`. Safe to run again: it only adds what is missing.
  */
 import bcrypt from "bcryptjs";
 import { randomBytes } from "node:crypto";
@@ -20,12 +20,16 @@ const ACCOUNTS: { name: string; type: AccountType; currency: string }[] = [
 
 async function main() {
   const email = (process.env.OWNER_EMAIL ?? "owner@ivevar.com").toLowerCase();
-  if (!(await db.user.findUnique({ where: { email } }))) {
+  if (await db.user.count({ where: { role: "OWNER" } })) {
+    // An owner already exists: never touch logins again.
+  } else if (!process.env.OWNER_PASSWORD && process.env.VERCEL) {
+    console.warn("OWNER_PASSWORD is not set, so no owner login was created. Add it in Vercel and redeploy.");
+  } else {
     const password = process.env.OWNER_PASSWORD ?? randomBytes(6).toString("base64url");
     await db.user.create({
       data: { name: process.env.OWNER_NAME ?? "Owner", email, role: "OWNER", passwordHash: await bcrypt.hash(password, 10) },
     });
-    console.log(`Owner login created: ${email} / ${password}  (change it in Settings)`);
+    console.log(`Owner login created for ${email}` + (process.env.OWNER_PASSWORD ? "" : ` with password ${password}`));
   }
 
   for (const a of ACCOUNTS) {

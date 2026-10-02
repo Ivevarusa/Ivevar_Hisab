@@ -7,6 +7,7 @@ import { db } from "@/lib/db";
 import { requireUser } from "@/lib/auth";
 import { audit } from "@/lib/audit";
 import { FormError, formAction, numOf, req, reqNum, str } from "@/lib/form";
+import { importWorkbook } from "@/lib/excel-import";
 
 export const saveRate = formAction(async (_prev: string | undefined, f: FormData) => {
   const user = await requireUser(["OWNER"]);
@@ -62,3 +63,17 @@ export const updateUser = formAction(async (id: string, _prev: string | undefine
   await audit(owner.id, "update", "user", id, { role, active, passwordChanged: !!password });
   revalidatePath("/settings");
 });
+
+export async function importExcel(_prev: string | undefined, f: FormData): Promise<string | undefined> {
+  const owner = await requireUser(["OWNER"]);
+  const file = f.get("file");
+  if (!(file instanceof File) || file.size === 0) return "Choose the Excel file first.";
+  try {
+    const { imported, skipped } = await importWorkbook(db, Buffer.from(await file.arrayBuffer()));
+    await audit(owner.id, "import", "excel", undefined, { file: file.name, imported, skipped });
+    revalidatePath("/", "layout");
+    return `Done: ${imported} orders imported${skipped ? `, ${skipped} were already there` : ""}.`;
+  } catch (e) {
+    return `Could not import this file: ${e instanceof Error ? e.message : String(e)}`;
+  }
+}
