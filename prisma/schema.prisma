@@ -1,0 +1,284 @@
+// IVEVAR business system: phase 1 (orders, payments, purchases, expenses, cash and bank)
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  OWNER
+  ACCOUNTS
+  SALES
+  DISPATCH
+  MARKETING
+}
+
+enum OrderSource {
+  EMPLOYEE
+  WEBSITE
+  ETSY
+  OTHER
+}
+
+enum OrderStatus {
+  ENQUIRY
+  CONFIRMED
+  IN_PRODUCTION
+  READY
+  DISPATCHED
+  DELIVERED
+  CANCELLED
+}
+
+enum PaymentKind {
+  DEPOSIT
+  BALANCE
+  FULL
+  REFUND
+}
+
+enum AccountType {
+  CASH
+  BANK
+  GATEWAY
+  WALLET
+}
+
+enum SupplierType {
+  MANUFACTURER
+  COURIER
+  VENDOR
+}
+
+enum ShipmentStatus {
+  DISPATCHED
+  IN_TRANSIT
+  DELIVERED
+  RETURNED
+}
+
+model User {
+  id            String   @id @default(cuid())
+  name          String
+  email         String   @unique
+  phone         String?
+  passwordHash  String
+  role          Role     @default(SALES)
+  commissionPct Decimal  @default(25) @db.Decimal(5, 2)
+  active        Boolean  @default(true)
+  createdAt     DateTime @default(now())
+
+  orders            SalesOrder[] @relation("SalesExec")
+  confirmedPayments PaymentIn[]  @relation("ConfirmedBy")
+  expenses          Expense[]    @relation("ExpenseEmployee")
+}
+
+model Customer {
+  id        String    @id @default(cuid())
+  name      String
+  phone     String?
+  whatsapp  String?
+  email     String?
+  address   String?
+  city      String?
+  state     String?
+  zip       String?
+  country   String?
+  birthday  DateTime? @db.Date
+  gender    String?
+  source    String?
+  notes     String?
+  createdAt DateTime  @default(now())
+
+  orders SalesOrder[]
+
+  @@index([name])
+}
+
+model SalesOrder {
+  id             String      @id @default(cuid())
+  orderNo        Int         @unique @default(autoincrement())
+  date           DateTime    @db.Date
+  customerId     String
+  customer       Customer    @relation(fields: [customerId], references: [id])
+  salesExecId    String?
+  salesExec      User?       @relation("SalesExec", fields: [salesExecId], references: [id])
+  source         OrderSource @default(EMPLOYEE)
+  websiteOrderId String?
+  status         OrderStatus @default(CONFIRMED)
+  totalUsd       Decimal     @db.Decimal(12, 2)
+  usdInrRate     Decimal     @db.Decimal(10, 4)
+  priority       String?
+  requiredBy     DateTime?   @db.Date
+  isGift         Boolean     @default(false)
+  engraving      String?
+  notes          String?
+  importRef      String?     @unique // set for orders imported from the old Excel sheet
+  createdAt      DateTime    @default(now())
+
+  items     OrderItem[]
+  payments  PaymentIn[]
+  purchases Purchase[]
+  shipments Shipment[]
+
+  @@index([date])
+}
+
+model OrderItem {
+  id       String     @id @default(cuid())
+  orderId  String
+  order    SalesOrder @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  name     String
+  category String?
+  metal    String?
+  stone    String?
+  specs    String?
+  quantity Int        @default(1)
+  priceUsd Decimal    @db.Decimal(12, 2)
+}
+
+model Account {
+  id             String      @id @default(cuid())
+  name           String      @unique
+  type           AccountType
+  currency       String      @default("INR")
+  openingBalance Decimal     @default(0) @db.Decimal(14, 2)
+  active         Boolean     @default(true)
+
+  paymentsIn    PaymentIn[]
+  paymentsOut   PaymentOut[]
+  expenses      Expense[]
+  transfersFrom Transfer[]   @relation("TransferFrom")
+  transfersTo   Transfer[]   @relation("TransferTo")
+}
+
+// Money received from a customer. amount is in the account's currency; amountInr = amount * rateToInr.
+model PaymentIn {
+  id            String      @id @default(cuid())
+  date          DateTime    @db.Date
+  orderId       String
+  order         SalesOrder  @relation(fields: [orderId], references: [id])
+  accountId     String
+  account       Account     @relation(fields: [accountId], references: [id])
+  kind          PaymentKind @default(FULL)
+  method        String
+  amount        Decimal     @db.Decimal(14, 2)
+  rateToInr     Decimal     @db.Decimal(10, 4)
+  amountInr     Decimal     @db.Decimal(14, 2)
+  confirmedById String?
+  confirmedBy   User?       @relation("ConfirmedBy", fields: [confirmedById], references: [id])
+  confirmedAt   DateTime?
+  notes         String?
+  createdById   String?
+  createdAt     DateTime    @default(now())
+}
+
+model Supplier {
+  id        String       @id @default(cuid())
+  name      String       @unique
+  type      SupplierType @default(MANUFACTURER)
+  phone     String?
+  gstNo     String?
+  bankInfo  String?
+  notes     String?
+  createdAt DateTime     @default(now())
+
+  purchases Purchase[]
+  payments  PaymentOut[]
+  shipments Shipment[]
+}
+
+// A bill from a supplier (making cost, material, courier invoice). Increases what we owe.
+model Purchase {
+  id          String      @id @default(cuid())
+  date        DateTime    @db.Date
+  supplierId  String
+  supplier    Supplier    @relation(fields: [supplierId], references: [id])
+  orderId     String?
+  order       SalesOrder? @relation(fields: [orderId], references: [id])
+  description String
+  billNo      String?
+  amountInr   Decimal     @db.Decimal(14, 2)
+  notes       String?
+  createdAt   DateTime    @default(now())
+}
+
+// Money paid to a supplier. Reduces what we owe and the account balance.
+model PaymentOut {
+  id         String   @id @default(cuid())
+  date       DateTime @db.Date
+  supplierId String
+  supplier   Supplier @relation(fields: [supplierId], references: [id])
+  accountId  String
+  account    Account  @relation(fields: [accountId], references: [id])
+  method     String?
+  amount     Decimal  @db.Decimal(14, 2)
+  rateToInr  Decimal  @default(1) @db.Decimal(10, 4)
+  amountInr  Decimal  @db.Decimal(14, 2)
+  notes      String?
+  createdAt  DateTime @default(now())
+}
+
+model Expense {
+  id          String   @id @default(cuid())
+  date        DateTime @db.Date
+  category    String
+  description String
+  paidTo      String?
+  accountId   String
+  account     Account  @relation(fields: [accountId], references: [id])
+  amount      Decimal  @db.Decimal(14, 2)
+  rateToInr   Decimal  @default(1) @db.Decimal(10, 4)
+  amountInr   Decimal  @db.Decimal(14, 2)
+  employeeId  String?
+  employee    User?    @relation("ExpenseEmployee", fields: [employeeId], references: [id])
+  createdAt   DateTime @default(now())
+}
+
+model Transfer {
+  id            String   @id @default(cuid())
+  date          DateTime @db.Date
+  fromAccountId String
+  fromAccount   Account  @relation("TransferFrom", fields: [fromAccountId], references: [id])
+  toAccountId   String
+  toAccount     Account  @relation("TransferTo", fields: [toAccountId], references: [id])
+  amountFrom    Decimal  @db.Decimal(14, 2)
+  amountTo      Decimal  @db.Decimal(14, 2)
+  notes         String?
+  createdAt     DateTime @default(now())
+}
+
+model Shipment {
+  id           String         @id @default(cuid())
+  orderId      String
+  order        SalesOrder     @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  courier      String
+  supplierId   String?
+  supplier     Supplier?      @relation(fields: [supplierId], references: [id])
+  trackingNo   String?
+  dispatchDate DateTime       @db.Date
+  status       ShipmentStatus @default(DISPATCHED)
+  trackingSent Boolean        @default(false)
+  costInr      Decimal        @default(0) @db.Decimal(12, 2)
+  notes        String?
+  createdAt    DateTime       @default(now())
+}
+
+model Setting {
+  key   String @id
+  value String
+}
+
+model AuditLog {
+  id        String   @id @default(cuid())
+  userId    String?
+  action    String
+  entity    String
+  entityId  String?
+  detail    String?
+  createdAt DateTime @default(now())
+}

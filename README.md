@@ -1,36 +1,45 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# IVEVAR Books
 
-## Getting Started
+One app for IVEVAR's orders, payments, purchases, expenses and cash. It runs in the browser on PC and installs on Android and iPhone ("Add to Home Screen").
 
-First, run the development server:
+Phase 1 covers:
+
+- **Orders**: customer, items, USD price, deposit, status, balance due, profit per order
+- **Payments in**: deposits, balances and refunds into any account; sales staff entries wait for owner/accounts confirmation
+- **Purchases and suppliers**: making cost per order, supplier bills, payments to suppliers, what we still owe
+- **Shipping**: courier, tracking, status, courier cost (owed to the courier as a supplier)
+- **Expenses**: by category, paid from an account, optionally linked to an employee (marketing spend)
+- **Cash & Bank**: every account (cash, bank, Stripe, PayPal, Zelle, crypto), transfers, a cash book with running balance
+- **Dashboard**: monthly sales, gross and net profit, money received, receivables, payables, cash, profit by sales executive
+- **Team and roles**: Owner, Accounts, Sales executive, Dispatch, Marketing. Every change is written to an audit log.
+
+Balances and profit are always calculated from the records, never typed in.
+
+## Tech
+
+Next.js 15 (App Router, server actions) · PostgreSQL via Prisma · Tailwind CSS · cookie sessions (jose) · installable PWA.
+
+## Run it on a computer
+
+Needs Node.js 20+ and a PostgreSQL database.
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+cp .env.example .env        # fill in DATABASE_URL and AUTH_SECRET
+npm install
+npm run db:migrate          # creates the tables
+npm run db:seed             # owner login, default accounts, USD→INR rate 88
+npm run import:excel -- "IVEVAR Master Sales  Profit Dashboard.xlsx"   # optional, one time
+npm run dev                 # http://localhost:3000
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+## Put it online (Supabase + Vercel)
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+1. Create a free project at supabase.com. Copy the database connection string (Session pooler).
+2. Put this code in a GitHub repository and import it at vercel.com.
+3. In Vercel, add the environment variables `DATABASE_URL` and `AUTH_SECRET`.
+4. From a computer with the code: set the same `DATABASE_URL` in `.env`, then run `npm run db:migrate`, `npm run db:seed` and (optionally) the Excel import.
+5. Open the Vercel link on each phone and choose "Add to Home Screen".
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## About the Excel import
 
-## Learn More
-
-To learn more about Next.js, take a look at the following resources:
-
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+`scripts/import-excel.ts` reads the "Shipping Updates" tab: customers, sales executives, orders, full payments, making cost and courier cost. Money from before the app goes through a closed account called "Excel history", so real accounts start clean with their opening balances. Imported sales executives cannot sign in until the owner gives them an email and password in Settings. Running the import again skips rows already imported.
