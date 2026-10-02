@@ -3,11 +3,13 @@ import { notFound } from "next/navigation";
 import { requireUser } from "@/lib/auth";
 import { accountLedger } from "@/lib/finance";
 import { day, label, money } from "@/lib/format";
-import { Card, PageHeader, Table, Td } from "@/components/ui";
+import { Card, Field, FormGrid, Input, PageHeader, Table, Td } from "@/components/ui";
+import { ActionForm } from "@/components/action-form";
+import { updateAccount } from "../../money/actions";
 import { db } from "@/lib/db";
 
 export default async function AccountPage({ params }: { params: Promise<{ id: string }> }) {
-  await requireUser(["OWNER", "ACCOUNTS"]);
+  const user = await requireUser(["OWNER", "ACCOUNTS"]);
   const { id } = await params;
   if (!(await db.account.findUnique({ where: { id } }))) notFound();
   const { account, rows, balance } = await accountLedger(id);
@@ -33,6 +35,23 @@ export default async function AccountPage({ params }: { params: Promise<{ id: st
           ))}
         </Table>
       </Card>
+      {user.role === "OWNER" && (
+        <Card title="Edit account" className="mt-4">
+          <ActionForm action={updateAccount.bind(null, account.id)} submit="Save" resetOnSuccess={false}>
+            <FormGrid>
+              <Field label="Name">
+                <Input name="name" required defaultValue={account.name} />
+              </Field>
+              <Field label={`Opening balance (${account.currency})`} hint="Balance on the day you started using the app">
+                <Input name="openingBalance" inputMode="decimal" defaultValue={String(account.openingBalance)} />
+              </Field>
+            </FormGrid>
+            <label className="flex items-center gap-2 text-sm">
+              <input type="checkbox" name="active" defaultChecked={account.active} /> In use (untick to close the account)
+            </label>
+          </ActionForm>
+        </Card>
+      )}
     </>
   );
 }

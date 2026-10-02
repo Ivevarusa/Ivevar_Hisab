@@ -153,3 +153,17 @@ export const createTransfer = formAction(async (_prev: string | undefined, f: Fo
   await audit(user.id, "create", "transfer", t.id);
   revalidatePath("/accounts");
 });
+
+export const updateAccount = formAction(async (id: string, _prev: string | undefined, f: FormData) => {
+  const user = await requireUser(["OWNER"]);
+  const name = req(f, "name", "Name");
+  const clash = await db.account.findUnique({ where: { name } });
+  if (clash && clash.id !== id) throw new FormError("An account with this name already exists.");
+  await db.account.update({
+    where: { id },
+    data: { name, openingBalance: numOf(f, "openingBalance") ?? 0, active: f.get("active") === "on" },
+  });
+  await audit(user.id, "update", "account", id);
+  revalidatePath(`/accounts/${id}`);
+  revalidatePath("/accounts");
+});
