@@ -23,7 +23,7 @@ async function main() {
   if (await db.user.count({ where: { role: "OWNER" } })) {
     // An owner already exists: never touch logins again.
   } else if (!process.env.OWNER_PASSWORD && process.env.VERCEL) {
-    console.warn("OWNER_PASSWORD is not set, so no owner login was created. Add it in Vercel and redeploy.");
+    console.log("No owner yet: open the app and create the owner login on the setup page.");
   } else {
     const password = process.env.OWNER_PASSWORD ?? randomBytes(6).toString("base64url");
     await db.user.create({

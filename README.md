@@ -19,13 +19,15 @@ Balances and profit are always calculated from the records, never typed in.
 
 Next.js 15 (App Router, server actions) · PostgreSQL via Prisma · Tailwind CSS · cookie sessions (jose) · installable PWA.
 
-## Put it online (Supabase + Vercel, no commands needed)
+## Put it online (Vercel + Supabase, only clicks)
 
-1. Create a free project at supabase.com. Copy the database connection string (Connect > Session pooler) and put the database password into it.
-2. Import this GitHub repository at vercel.com.
-3. In Vercel, add the environment variables `DATABASE_URL`, `AUTH_SECRET` (32+ random characters), `OWNER_EMAIL` and `OWNER_PASSWORD`, then deploy.
-4. Every deploy creates or updates the tables and adds the owner login, default accounts and the USD→INR rate if they are missing (`npm run build` runs `prisma migrate deploy` and `prisma/seed.ts`).
-5. Sign in as the owner and upload the old Excel file in Settings > Import old Excel.
+1. At vercel.com, import this GitHub repository and deploy. Without a database the app shows "Database is not connected yet".
+2. In the Vercel project, open Storage, create a Supabase database and connect it to the project. This fills in `POSTGRES_PRISMA_URL`, `POSTGRES_URL_NON_POOLING` and `SUPABASE_JWT_SECRET` automatically.
+3. Redeploy. The build (`scripts/vercel-build.mjs`) creates the tables, default accounts and exchange rate.
+4. Open the app: the first visit shows a one-time page to create the owner login.
+5. Upload the old Excel in Settings > Import old Excel.
+
+`DATABASE_URL` and `AUTH_SECRET` can be set by hand instead, for any other PostgreSQL host.
 
 ## Run it on a computer
 

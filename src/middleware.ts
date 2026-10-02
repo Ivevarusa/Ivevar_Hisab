@@ -1,7 +1,8 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { jwtVerify } from "jose";
+import { authSecret } from "./lib/env";
 
-const PUBLIC = ["/login", "/manifest.webmanifest", "/icon", "/apple-icon"];
+const PUBLIC = ["/login", "/setup", "/manifest.webmanifest", "/icon", "/apple-icon"];
 
 export async function middleware(req: NextRequest) {
   const { pathname } = req.nextUrl;
@@ -10,7 +11,7 @@ export async function middleware(req: NextRequest) {
   const token = req.cookies.get("session")?.value;
   if (token) {
     try {
-      await jwtVerify(token, new TextEncoder().encode(process.env.AUTH_SECRET));
+      await jwtVerify(token, new TextEncoder().encode(authSecret()));
       return NextResponse.next();
     } catch {}
   }

@@ -3,6 +3,7 @@ import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { SignJWT, jwtVerify } from "jose";
 import type { Role } from "@prisma/client";
+import { authSecret } from "./env";
 
 const COOKIE = "session";
 const MAX_AGE = 60 * 60 * 24 * 30; // 30 days
@@ -10,8 +11,8 @@ const MAX_AGE = 60 * 60 * 24 * 30; // 30 days
 export type SessionUser = { id: string; name: string; role: Role };
 
 function secret() {
-  const s = process.env.AUTH_SECRET;
-  if (!s || s.length < 32) throw new Error("AUTH_SECRET must be set (32+ characters)");
+  const s = authSecret();
+  if (!s || s.length < 32) throw new Error("AUTH_SECRET (or SUPABASE_JWT_SECRET) must be set, 32+ characters");
   return new TextEncoder().encode(s);
 }
 
